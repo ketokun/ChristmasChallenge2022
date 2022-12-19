@@ -12,9 +12,10 @@
       <Content Include="data\ipsPresorted.db">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
-    </ItemGroup>
-    <ItemGroup>
-      <Compile Remove="HttpApi.cs" />
+      <None Remove="data\locations.db" />
+      <Content Include="data\locations.db">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
     <ItemGroup>
       <PackageReference Include="System.Data.SQLite.Core" Version="1.0.117" />
