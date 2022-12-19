@@ -12,6 +12,10 @@
       <Content Include="data\ipsPresorted.db">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+      <None Remove="data\locations.db" />
+      <Content Include="data\locations.db">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
     <ItemGroup>
       <Compile Remove="HttpApi.cs" />

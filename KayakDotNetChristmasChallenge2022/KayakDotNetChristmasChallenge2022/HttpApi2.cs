@@ -14,7 +14,7 @@ public class HttpApi2
     {
         var sw = Stopwatch.StartNew();
 
-        _locationData = GetLocationsFromFile(fileName);
+        _locationData = GetLocationsFromFile(fileName).Result;
         sw.Stop();
         var responseString = "GeoIp table loaded " + sw.Elapsed;
 
@@ -31,71 +31,89 @@ public class HttpApi2
         public IpRange[] Ips;
     }
 
-    private static LocationData GetLocationsFromFile(string fileName)
+    private static async Task<Location[]> GetLocations()
+    {
+        var locations =  Array.Empty<Location>();
+        using var fileDb = new SQLiteConnection($"Data Source=data/locations.db;FailIfMissing=True;");
+        fileDb.Open();
+        var command = fileDb.CreateCommand();
+            
+        command.CommandText = "SELECT count(*) from locations";
+        await using (var rdr = await command.ExecuteReaderAsync())
+        {
+            await rdr.ReadAsync();
+            locations = new Location[rdr.GetInt32(0)];
+        }
+            
+        command.CommandText = "SELECT * from locations";
+        await using (var rdr = await command.ExecuteReaderAsync())
+        {
+            var i = 0;
+            while (await rdr.ReadAsync())
+            { 
+                locations[i] = new Location
+                {
+                    CountryCode = string.Intern(rdr.GetString(1)),
+                    Country = string.Intern(rdr.GetString(2)),
+                    Region = string.Intern(rdr.GetString(3)),
+                    City = rdr.GetString(4),
+                    Lat = rdr.GetDouble(5),
+                    Lon = rdr.GetDouble(6)
+                };
+                i++;
+            }
+        }
+
+        return locations;
+    }
+    
+    private static async Task<IpRange[]> GetIpRanges()
+    { 
+        var ips = Array.Empty<IpRange>();
+        using var fileDb = new SQLiteConnection($"Data Source=data/ipsPresorted.db;FailIfMissing=True;");
+        fileDb.Open();
+        var command = fileDb.CreateCommand();
+            
+        command.CommandText = "SELECT count(*) from ranges";
+        await using (var rdr = await command.ExecuteReaderAsync())
+        {
+            await rdr.ReadAsync();
+            ips = new IpRange[rdr.GetInt32(0)];
+        }
+
+
+        command.CommandText = "SELECT * from ranges";
+        await using (var rdr =await command.ExecuteReaderAsync())
+        {
+            int i = 0;
+            while (await rdr.ReadAsync())
+            {
+                ips[i] = new IpRange
+                {
+                    LowValue = (uint) rdr.GetInt64(0), HiValue = (uint) rdr.GetInt64(1),
+                    LocationID = rdr.GetInt32(2)
+                };
+                i++;
+            }
+        }
+
+        return ips;
+    }
+    
+    private static async Task<LocationData> GetLocationsFromFile(string fileName)
     {
         // -----------------------------------------------------
         bool isGenerator = false;
         // -----------------------------------------------------
-
-        var locations =  Array.Empty<Location>();
+        
         if (!isGenerator)
         {
-            using var fileDb = new SQLiteConnection($"Data Source=data/ipsPresorted.db;FailIfMissing=True;");
-            fileDb.Open();
-            var command = fileDb.CreateCommand();
-            
-            command.CommandText = "SELECT count(*) from locations";
-            using (SQLiteDataReader rdr = command.ExecuteReader())
-            {
-                rdr.Read();
-                locations = new Location[rdr.GetInt32(0)];
-            }
-            
-            command.CommandText = "SELECT * from locations";
-            using (SQLiteDataReader rdr = command.ExecuteReader())
-            {
-                var i = 0;
-                while (rdr.Read())
-                { 
-                    locations[i] = new Location
-                    {
-                        CountryCode = string.Intern(rdr.GetString(1)),
-                        Country = string.Intern(rdr.GetString(2)),
-                        Region = string.Intern(rdr.GetString(3)),
-                        City = rdr.GetString(4),
-                        Lat = rdr.GetDouble(5),
-                        Lon = rdr.GetDouble(6)
-                    };
-                    i++;
-                }
-            }
-
-
-            var ips = Array.Empty<IpRange>();
-            command.CommandText = "SELECT count(*) from ranges";
-            using (SQLiteDataReader rdr = command.ExecuteReader())
-            {
-                rdr.Read();
-                ips = new IpRange[rdr.GetInt32(0)];
-            }
-
-
-            command.CommandText = "SELECT * from ranges";
-            using (SQLiteDataReader rdr = command.ExecuteReader())
-            {
-                int i = 0;
-                while (rdr.Read())
-                {
-                    ips[i] = new IpRange
-                    {
-                        LowValue = (uint) rdr.GetInt64(0), HiValue = (uint) rdr.GetInt64(1),
-                        LocationID = rdr.GetInt32(2)
-                    };
-                    i++;
-                }
-
-                return new LocationData {Locations = locations.ToArray(), Ips = ips};
-            }
+            var t1 = Task.Run(GetLocations);
+            var t2 = Task.Run(GetIpRanges);
+            var locations = await t1;
+            var ips = await t2;
+            GC.Collect();
+            return new LocationData {Locations = locations.ToArray(), Ips = ips};
         }
 
         if (isGenerator)
@@ -112,17 +130,14 @@ public class HttpApi2
     {
         var locationIds = new Dictionary<long, long>();
         string cs = "Data Source=:memory:";
-        using var con = new SQLiteConnection(cs);
-        con.Open();
+        using var con1 = new SQLiteConnection(cs);
+        con1.Open();
 
-        using var cmd = new SQLiteCommand(con);
+        using var cmd = new SQLiteCommand(con1);
 
         cmd.CommandText = "DROP TABLE IF EXISTS ranges";
         cmd.ExecuteNonQuery();
         cmd.CommandText = "DROP TABLE IF EXISTS locations";
-        cmd.ExecuteNonQuery();
-        cmd.CommandText = @"CREATE TABLE ranges(LowValue INTEGER,
-            HiValue INTEGER, LocationID integer)";
         cmd.ExecuteNonQuery();
 
         cmd.CommandText = @"CREATE TABLE locations(ID INTEGER PRIMARY KEY,
@@ -144,10 +159,28 @@ public class HttpApi2
                                   $"'{data.location.Lat}'," +
                                   $"'{data.location.Lon}')";
                 cmd.ExecuteNonQuery();
-                locationId = con.LastInsertRowId;
+                locationId = con1.LastInsertRowId;
                 locationIds.Add(data.location.GetHashCode(), locationId);
             }
+        }
+        
+        cmd.CommandText = "VACUUM INTO 'file:locations.db'";
+        cmd.ExecuteNonQuery();
+        
+        cmd.CommandText = "DROP TABLE IF EXISTS locations";
+        cmd.ExecuteNonQuery();
+        
+        cmd.CommandText = @"CREATE TABLE ranges(LowValue INTEGER,
+            HiValue INTEGER, LocationID integer)";
+        cmd.ExecuteNonQuery();
 
+        foreach (var data in locationData.OrderBy(x => x.ipRange.LowValue).ToList())
+        {
+            long locationId = 0;
+            bool hasLocation = false;
+
+            locationIds.TryGetValue(data.location.GetHashCode(), out locationId);
+                
             cmd.CommandText =
                 $"INSERT INTO ranges(LowValue, HiValue, LocationID) VALUES({data.ipRange.LowValue},{data.ipRange.HiValue},{locationId})";
             cmd.ExecuteNonQuery();
