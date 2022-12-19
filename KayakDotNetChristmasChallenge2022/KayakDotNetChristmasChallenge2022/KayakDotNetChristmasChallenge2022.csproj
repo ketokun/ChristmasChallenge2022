@@ -7,9 +7,6 @@
     </PropertyGroup>
     <ItemGroup>
       <None Remove="data\IP2LOCATION-LITE-DB5.CSV" />
-      <Content Include="data\IP2LOCATION-LITE-DB5.CSV">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
       <None Remove="data\ips.db" />
       <None Remove="data\ipsPresorted.db" />
       <Content Include="data\ipsPresorted.db">
