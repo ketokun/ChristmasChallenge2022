@@ -24,8 +24,8 @@ public struct IpLocationData
             Country = rowComponents[3],
             Region = rowComponents[4],
             City = rowComponents[5],
-            Lat = double.Parse(rowComponents[6]),
-            Lon = double.Parse(rowComponents[7]),
+            Lat = float.Parse(rowComponents[6]),
+            Lon = float.Parse(rowComponents[7]),
         };
         return (result, location);
     }
@@ -34,7 +34,7 @@ public struct IpLocationData
 public class Location
 {
     public string CountryCode, Country, Region, City;
-    public double Lat, Lon;
+    public float Lat, Lon;
 
     public override bool Equals(object? obj)
     {

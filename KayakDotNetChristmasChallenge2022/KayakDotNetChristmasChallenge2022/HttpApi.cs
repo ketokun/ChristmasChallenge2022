@@ -53,12 +53,12 @@ public class HttpApi
             { 
                 locations[i] = new Location
                 {
-                    CountryCode = string.Intern(rdr.GetString(1)),
-                    Country = string.Intern(rdr.GetString(2)),
-                    Region = string.Intern(rdr.GetString(3)),
+                    CountryCode = rdr.GetString(1),
+                    Country = rdr.GetString(2),
+                    Region = rdr.GetString(3),
                     City = rdr.GetString(4),
-                    Lat = rdr.GetDouble(5),
-                    Lon = rdr.GetDouble(6)
+                    Lat = rdr.GetFloat(5),
+                    Lon = rdr.GetFloat(6)
                 };
                 i++;
             }
@@ -108,11 +108,8 @@ public class HttpApi
         
         if (!isGenerator)
         {
-            var t1 = Task.Run(GetLocations);
-            var t2 = Task.Run(GetIpRanges);
-            var locations = await t1;
-            var ips = await t2;
-            GC.Collect();
+            var locations = await GetLocations();
+            var ips = await GetIpRanges(); 
             return new LocationData {Locations = locations.ToArray(), Ips = ips};
         }
 
