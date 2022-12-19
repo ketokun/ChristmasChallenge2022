@@ -8,7 +8,7 @@ public class HttpServer
     private const string FileName = "data/ips.db";
     public void Start()
     {
-        HttpApi2.RefreshIpList(FileName);
+        HttpApi.RefreshIpList(FileName);
         var listener = new HttpListener();
         listener.Prefixes.Add("http://localhost:8001/");
         listener.Start();
@@ -47,8 +47,8 @@ public class HttpServer
     {
         return verb switch
         {
-            "/ips" => HttpApi2.BuildIpsResponse(param),
-            "/refresh" => HttpApi2.RefreshIpList(param),
+            "/ips" => HttpApi.BuildIpsResponse(param),
+            "/refresh" => HttpApi.RefreshIpList(param),
             _ => "Wrong request"
         };
     }

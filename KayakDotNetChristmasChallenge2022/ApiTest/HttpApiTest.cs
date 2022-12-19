@@ -13,10 +13,10 @@ public class HttpApiTest
     public async Task BuildIpResponseTest()
     {
         var fileName = "data/IP2LOCATION-LITE-DB5.CSV";
-        var refreshResponse = HttpApi2.RefreshIpList(fileName);
+        var refreshResponse = HttpApi.RefreshIpList(fileName);
         Console.WriteLine(refreshResponse);
         
-        var response = HttpApi2.BuildIpsResponse("value=223.187.136.254,1.0.245.255");
+        var response = HttpApi.BuildIpsResponse("value=223.187.136.254,1.0.245.255");
         Console.WriteLine(response);
         
         Assert.That(response.StartsWith("India/Ramgarh,Thailand/Ko Samui"), Is.True);
